@@ -1,0 +1,94 @@
+{
+  "name": "19 - Sentiment Processor for Support Quality (HF + Forward)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "support/sentiment/process",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "1",
+      "name": "Webhook - Text Batch/Single",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [-980, 40]
+    },
+    {
+      "parameters": {
+        "functionCode": "let items = [];\nif (Array.isArray($json)) items = $json; else if (Array.isArray($json.items)) items = $json.items; else items = [$json];\nreturn items.map(i => ({ id: i.id || '', text: i.text || '', meta: i.meta || {} }));"
+      },
+      "id": "2",
+      "name": "Normalize Batch",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-740, 40]
+    },
+    {
+      "parameters": {
+        "url": "={{'https://api-inference.huggingface.co/models/' + ($env.HF_SENTIMENT_MODEL || 'distilbert-base-uncased-finetuned-sst-2-english')}}",
+        "requestMethod": "POST",
+        "jsonParameters": true,
+        "sendBinaryData": false,
+        "headerParametersJson": "={{ { 'Authorization': 'Bearer ' + $env.HUGGINGFACE_API_KEY, 'Content-Type': 'application/json' } }}",
+        "bodyParametersJson": "={{ { inputs: $json.text } }}"
+      },
+      "id": "3",
+      "name": "HF - Sentiment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [-500, 40]
+    },
+    {
+      "parameters": {
+        "functionCode": "const arr = Array.isArray($json) ? $json : ($json[0] ? $json[0] : []);\nconst best = Array.isArray(arr) ? arr.reduce((a,b)=> (b.score||0)>(a.score||0)?b:a, {label:'NEUTRAL', score:0}) : {label:'NEUTRAL', score:0};\nreturn [{ id: $items(0).item.json.id, label: (best.label||'NEUTRAL').toLowerCase(), score: Number(best.score||0), meta: $items(0).item.json.meta }];"
+      },
+      "id": "4",
+      "name": "Parse Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-260, 40]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.ANALYTICS_WEBHOOK_URL || ''}}",
+        "requestMethod": "POST",
+        "jsonParameters": true,
+        "sendBinaryData": false,
+        "headerParametersJson": "={{ $env.ANALYTICS_WEBHOOK_URL ? { 'Content-Type': 'application/json' } : {} }}",
+        "bodyParametersJson": "={{ $env.ANALYTICS_WEBHOOK_URL ? { series: 'support_sentiment', record: { id: $json.id, label: $json.label, score: $json.score, meta: $json.meta, at: new Date().toISOString() } } : {} }}"
+      },
+      "id": "5",
+      "name": "Forward to Analytics (optional)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [-40, -80]
+    },
+    {
+      "parameters": {
+        "responseCode": 200,
+        "responseBody": "={{ $json }}"
+      },
+      "id": "6",
+      "name": "Respond Each",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [-40, 160]
+    }
+  ],
+  "connections": {
+    "Webhook - Text Batch/Single": { "main": [[{ "node": "Normalize Batch", "type": "main", "index": 0 }]] },
+    "Normalize Batch": { "main": [[{ "node": "HF - Sentiment", "type": "main", "index": 0 }]] },
+    "HF - Sentiment": { "main": [[{ "node": "Parse Result", "type": "main", "index": 0 }]] },
+    "Parse Result": {
+      "main": [
+        [{ "node": "Forward to Analytics (optional)", "type": "main", "index": 0 }],
+        [{ "node": "Respond Each", "type": "main", "index": 0 }]
+      ]
+    },
+    "Forward to Analytics (optional)": { "main": [[{ "node": "Respond Each", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "id": "19-support-sentiment-dashboards"
+}

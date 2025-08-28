@@ -1,0 +1,105 @@
+{
+  "name": "20 - AI Reports from Chat Logs (LLM Insights)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "support/reports/chatlogs",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "1",
+      "name": "Webhook - Chat Logs",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [-1080, 20]
+    },
+    {
+      "parameters": {
+        "functionCode": "const logs = Array.isArray($json.logs) ? $json.logs : [];\nconst params = { timeframe: $json.timeframe || 'last_24h', team: $json.team || 'all' };\nreturn [{ logs, params }];"
+      },
+      "id": "2",
+      "name": "Normalize",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-840, 20]
+    },
+    {
+      "parameters": {
+        "functionCode": "const sys = 'Analyze support chat logs and output JSON {summary, top_intents:[{intent,count}], common_issues:[{issue,count}], avg_sentiment:-1..1, csat_estimate:0..5, recommendations:[]}';\nconst user = JSON.stringify({ logs: $json.logs.slice(0, 200), params: $json.params });\nreturn [{ payload: { model: $env.OPENAI_MODEL || 'gpt-4o-mini', temperature: 0.2, response_format: {type:'json_object'}, messages: [ {role:'system', content: sys}, {role:'user', content: user} ] } }];"
+      },
+      "id": "3",
+      "name": "Build LLM Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-600, 20]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.OPENAI_BASE_URL || 'https://api.openai.com/v1/chat/completions'}}",
+        "requestMethod": "POST",
+        "jsonParameters": true,
+        "sendBinaryData": false,
+        "headerParametersJson": "={{ { 'Authorization': 'Bearer ' + $env.OPENAI_API_KEY, 'Content-Type': 'application/json' } }}",
+        "bodyParametersJson": "={{ $json.payload }}"
+      },
+      "id": "4",
+      "name": "OpenAI - Analyze",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [-360, 20]
+    },
+    {
+      "parameters": {
+        "functionCode": "let c = $json.choices?.[0]?.message?.content || '{}';\nlet parsed; try { parsed = JSON.parse(c); } catch(e){ parsed = { summary:'', top_intents:[], common_issues:[], avg_sentiment:0, csat_estimate:3, recommendations:[] }; }\nreturn [parsed];"
+      },
+      "id": "5",
+      "name": "Parse JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-120, 20]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.REPORTS_WEBHOOK_URL || ''}}",
+        "requestMethod": "POST",
+        "jsonParameters": true,
+        "sendBinaryData": false,
+        "headerParametersJson": "={{ $env.REPORTS_WEBHOOK_URL ? { 'Content-Type': 'application/json' } : {} }}",
+        "bodyParametersJson": "={{ $env.REPORTS_WEBHOOK_URL ? { type: 'support_chat_report', timeframe: $items(0).item.json.params.timeframe, team: $items(0).item.json.params.team, report: $json } : {} }}"
+      },
+      "id": "6",
+      "name": "Send Report (optional)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [120, -100]
+    },
+    {
+      "parameters": {
+        "responseCode": 200,
+        "responseBody": "={{ $json }}"
+      },
+      "id": "7",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [120, 140]
+    }
+  ],
+  "connections": {
+    "Webhook - Chat Logs": { "main": [[{ "node": "Normalize", "type": "main", "index": 0 }]] },
+    "Normalize": { "main": [[{ "node": "Build LLM Payload", "type": "main", "index": 0 }]] },
+    "Build LLM Payload": { "main": [[{ "node": "OpenAI - Analyze", "type": "main", "index": 0 }]] },
+    "OpenAI - Analyze": { "main": [[{ "node": "Parse JSON", "type": "main", "index": 0 }]] },
+    "Parse JSON": {
+      "main": [
+        [{ "node": "Send Report (optional)", "type": "main", "index": 0 }],
+        [{ "node": "Respond", "type": "main", "index": 0 }]
+      ]
+    },
+    "Send Report (optional)": { "main": [[{ "node": "Respond", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "id": "20-support-ai-reports-from-chatlogs"
+}

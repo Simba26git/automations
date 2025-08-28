@@ -1,0 +1,175 @@
+{
+  "name": "AI Social Media Monitoring",
+  "nodes": [
+    {
+      "parameters": {
+        "resource": "search",
+        "operation": "search",
+        "searchText": "{{ $json.brand_name }} OR {{ $json.company_name }}",
+        "additionalFields": {
+          "count": 50,
+          "result_type": "recent"
+        }
+      },
+      "id": "k1l2m3n4-o5p6-7890-klmn-123456789012",
+      "name": "Monitor Twitter",
+      "type": "n8n-nodes-base.twitter",
+      "typeVersion": 1,
+      "position": [
+        260,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "create",
+        "chatId": {
+          "chatId": "gpt-4"
+        },
+        "text": "=Analyze the sentiment of this social media post and categorize it as: Positive, Negative, or Neutral.\n\nAlso identify if this requires immediate attention (Yes/No) based on urgency or negative sentiment.\n\nPost: {{ $node[\"Monitor Twitter\"].json[\"text\"] }}\n\nRespond in JSON format:\n{\n  \"sentiment\": \"Positive/Negative/Neutral\",\n  \"requires_attention\": \"Yes/No\",\n  \"confidence_score\": \"0.0-1.0\",\n  \"summary\": \"Brief summary of the post\"\n}"
+      },
+      "id": "l2m3n4o5-p6q7-8901-lmno-234567890123",
+      "name": "AI Sentiment Analysis",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [
+        480,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "m3n4o5p6-q7r8-9012-mnop-345678901234",
+              "leftValue": "={{ JSON.parse($node[\"AI Sentiment Analysis\"].json[\"choices\"][0][\"message\"][\"content\"]).requires_attention }}",
+              "rightValue": "Yes",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "n4o5p6q7-r8s9-0123-nopq-456789012345",
+      "name": "Check if Attention Needed",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "workspaceId": "workspace_id",
+        "title": "=Social Media Alert: {{ JSON.parse($node[\"AI Sentiment Analysis\"].json[\"choices\"][0][\"message\"][\"content\"]).sentiment }} Mention",
+        "content": "=**Post Content:** {{ $node[\"Monitor Twitter\"].json[\"text\"] }}\n\n**Sentiment:** {{ JSON.parse($node[\"AI Sentiment Analysis\"].json[\"choices\"][0][\"message\"][\"content\"]).sentiment }}\n\n**Confidence:** {{ JSON.parse($node[\"AI Sentiment Analysis\"].json[\"choices\"][0][\"message\"][\"content\"]).confidence_score }}\n\n**Summary:** {{ JSON.parse($node[\"AI Sentiment Analysis\"].json[\"choices\"][0][\"message\"][\"content\"]).summary }}\n\n**Source:** {{ $node[\"Monitor Twitter\"].json[\"user\"][\"screen_name\"] }}\n\n**URL:** https://twitter.com/{{ $node[\"Monitor Twitter\"].json[\"user\"][\"screen_name\"] }}/status/{{ $node[\"Monitor Twitter\"].json[\"id_str\"] }}"
+      },
+      "id": "o5p6q7r8-s9t0-1234-opqr-567890123456",
+      "name": "Create Alert Ticket",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [
+        920,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "resource": "record",
+        "application": "social_monitoring",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "post_content": "={{ $node[\"Monitor Twitter\"].json[\"text\"] }}",
+            "sentiment": "={{ JSON.parse($node[\"AI Sentiment Analysis\"].json[\"choices\"][0][\"message\"][\"content\"]).sentiment }}",
+            "platform": "Twitter",
+            "author": "={{ $node[\"Monitor Twitter\"].json[\"user\"][\"screen_name\"] }}",
+            "date": "={{ $node[\"Monitor Twitter\"].json[\"created_at\"] }}",
+            "requires_attention": "={{ JSON.parse($node[\"AI Sentiment Analysis\"].json[\"choices\"][0][\"message\"][\"content\"]).requires_attention }}"
+          }
+        }
+      },
+      "id": "p6q7r8s9-t0u1-2345-pqrs-678901234567",
+      "name": "Log to Database",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 1,
+      "position": [
+        920,
+        400
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Monitor Twitter": {
+      "main": [
+        [
+          {
+            "node": "AI Sentiment Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Sentiment Analysis": {
+      "main": [
+        [
+          {
+            "node": "Check if Attention Needed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check if Attention Needed": {
+      "main": [
+        [
+          {
+            "node": "Create Alert Ticket",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log to Database",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log to Database",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "34567890-12cd-ef34-5678-901234cdef45",
+  "id": "23",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ghi789jkl012mno345pqr678stu901vwx234yz567abc123def456"
+  },
+  "tags": []
+}

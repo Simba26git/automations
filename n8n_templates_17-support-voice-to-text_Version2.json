@@ -1,0 +1,115 @@
+{
+  "name": "17 - Voice-to-Text Transcription for Support Calls",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "support/transcribe",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "1",
+      "name": "Webhook - Audio URL",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [-980, 60]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "mode": "auto",
+          "assignments": [
+            { "id": "audioUrl", "name": "audioUrl", "type": "string", "value": "={{$json.audioUrl || ''}}" },
+            { "id": "ticketId", "name": "ticketId", "type": "string", "value": "={{$json.ticketId || ''}}" },
+            { "id": "language", "name": "language", "type": "string", "value": "={{$json.language || 'en'}}" }
+          ]
+        }
+      },
+      "id": "2",
+      "name": "Normalize",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [-740, 60]
+    },
+    {
+      "parameters": {
+        "functionCode": "const url = $json.audioUrl;\nif (!url) { return [{ transcript: '', error: 'missing_audio_url' }]; }\nconst data = await this.helpers.request({ method:'GET', url, encoding: null });\nreturn [{ json: {}, binary: { audio: { data, mimeType: 'audio/mpeg', fileName: 'call.mp3' } } }];"
+      },
+      "id": "3",
+      "name": "Fetch Audio",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-520, 200]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.OPENAI_BASE_URL || 'https://api.openai.com/v1/audio/transcriptions'}}",
+        "requestMethod": "POST",
+        "jsonParameters": false,
+        "sendBinaryData": true,
+        "options": { "sendBinaryData": true },
+        "headerParametersJson": "={{ { 'Authorization': 'Bearer ' + $env.OPENAI_API_KEY } }}",
+        "queryParametersUi": { "parameter": [] },
+        "bodyParameters": {},
+        "binaryPropertyName": "audio"
+      },
+      "id": "4",
+      "name": "Whisper - Transcribe",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [-300, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "const transcript = $json.text || $json.transcript || '';\nreturn [{ transcript }];"
+      },
+      "id": "5",
+      "name": "Extract Transcript",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-80, 200]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.TICKETING_WEBHOOK_URL || ''}}",
+        "requestMethod": "POST",
+        "jsonParameters": true,
+        "sendBinaryData": false,
+        "headerParametersJson": "={{ $env.TICKETING_WEBHOOK_URL ? { 'Content-Type': 'application/json' } : {} }}",
+        "bodyParametersJson": "={{ $env.TICKETING_WEBHOOK_URL ? { action: 'attach_transcript', ticketId: $items(0).item.json.ticketId, transcript: $json.transcript } : {} }}"
+      },
+      "id": "6",
+      "name": "Attach to Ticket (optional)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [160, 80]
+    },
+    {
+      "parameters": {
+        "responseCode": 200,
+        "responseBody": "={{ { transcript: $json.transcript } }}"
+      },
+      "id": "7",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [160, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - Audio URL": { "main": [[{ "node": "Normalize", "type": "main", "index": 0 }]] },
+    "Normalize": { "main": [[{ "node": "Fetch Audio", "type": "main", "index": 0 }]] },
+    "Fetch Audio": { "main": [[{ "node": "Whisper - Transcribe", "type": "main", "index": 0 }]] },
+    "Whisper - Transcribe": { "main": [[{ "node": "Extract Transcript", "type": "main", "index": 0 }]] },
+    "Extract Transcript": {
+      "main": [
+        [{ "node": "Attach to Ticket (optional)", "type": "main", "index": 0 }],
+        [{ "node": "Respond", "type": "main", "index": 0 }]
+      ]
+    },
+    "Attach to Ticket (optional)": { "main": [[{ "node": "Respond", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "id": "17-support-voice-to-text"
+}

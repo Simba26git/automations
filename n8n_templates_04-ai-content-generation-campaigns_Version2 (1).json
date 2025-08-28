@@ -1,0 +1,93 @@
+{
+  "name": "04 - AI Content Generation for Marketing Campaigns",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "marketing/generate",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "1",
+      "name": "Webhook - Campaign Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [-860, 0]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "mode": "auto",
+          "assignments": [
+            { "id": "campaignType", "name": "campaignType", "type": "string", "value": "={{$json.campaignType || 'email'}}" },
+            { "id": "audience", "name": "audience", "type": "string", "value": "={{$json.audience || ''}}" },
+            { "id": "productInfo", "name": "productInfo", "type": "json", "value": "={{$json.productInfo || {}}}" },
+            { "id": "channels", "name": "channels", "type": "json", "value": "={{$json.channels || ['email','linkedin']}}" },
+            { "id": "tone", "name": "tone", "type": "string", "value": "={{$json.tone || 'friendly, professional'}}" }
+          ]
+        }
+      },
+      "id": "2",
+      "name": "Normalize",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [-620, 0]
+    },
+    {
+      "parameters": {
+        "functionCode": "const sys = `You are a marketing copywriter. Generate JSON with keys: email_subjects (array), email_body (html), linkedin_post (text), twitter_post (text), ad_copy (text). Keep to brand tone: ${$json.tone}. Audience: ${$json.audience}.`;\nreturn [{ payload: { model: $env.OPENAI_MODEL || 'gpt-4o-mini', temperature: Number($env.OPENAI_TEMPERATURE || 0.5), response_format: { type:'json_object' }, messages: [ {role:'system', content: sys}, {role:'user', content: JSON.stringify({campaignType:$json.campaignType, product:$json.productInfo, channels:$json.channels})} ] } }];"
+      },
+      "id": "3",
+      "name": "Build LLM Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-380, 0]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.OPENAI_BASE_URL || 'https://api.openai.com/v1/chat/completions'}}",
+        "requestMethod": "POST",
+        "jsonParameters": true,
+        "sendBinaryData": false,
+        "headerParametersJson": "={{ { 'Authorization': 'Bearer ' + $env.OPENAI_API_KEY, 'Content-Type': 'application/json' } }}",
+        "bodyParametersJson": "={{ $json.payload }}"
+      },
+      "id": "4",
+      "name": "OpenAI - Generate",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [-140, 0]
+    },
+    {
+      "parameters": {
+        "functionCode": "let content = $json.choices?.[0]?.message?.content || '{}';\nlet parsed; try { parsed = JSON.parse(content); } catch(e) { parsed = { email_subjects:[], email_body:'', linkedin_post:'', twitter_post:'', ad_copy:'' }; }\nreturn [parsed];"
+      },
+      "id": "5",
+      "name": "Parse JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [100, 0]
+    },
+    {
+      "parameters": {
+        "responseCode": 200,
+        "responseBody": "={{ $json }}"
+      },
+      "id": "6",
+      "name": "Respond with Content",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [340, 0]
+    }
+  ],
+  "connections": {
+    "Webhook - Campaign Request": { "main": [[{ "node": "Normalize", "type": "main", "index": 0 }]] },
+    "Normalize": { "main": [[{ "node": "Build LLM Payload", "type": "main", "index": 0 }]] },
+    "Build LLM Payload": { "main": [[{ "node": "OpenAI - Generate", "type": "main", "index": 0 }]] },
+    "OpenAI - Generate": { "main": [[{ "node": "Parse JSON", "type": "main", "index": 0 }]] },
+    "Parse JSON": { "main": [[{ "node": "Respond with Content", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "id": "04-ai-content-generation-campaigns"
+}

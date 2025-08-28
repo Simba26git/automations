@@ -1,0 +1,90 @@
+{
+  "name": "16 - Translate Support Queries for Agents",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "support/translate",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "1",
+      "name": "Webhook - Translate",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [-900, 20]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "mode": "auto",
+          "assignments": [
+            { "id": "text", "name": "text", "type": "string", "value": "={{$json.text || ''}}" },
+            { "id": "targetLang", "name": "targetLang", "type": "string", "value": "={{$json.targetLang || 'en'}}" }
+          ]
+        }
+      },
+      "id": "2",
+      "name": "Normalize",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [-680, 20]
+    },
+    {
+      "parameters": {
+        "functionCode": "const sys = 'Translate the text into the target language. Output JSON {translated} only.';\nconst user = JSON.stringify({ text: $json.text, target: $json.targetLang });\nreturn [{ payload: { model: $env.OPENAI_MODEL || 'gpt-4o-mini', temperature: 0.2, response_format: {type:'json_object'}, messages: [ {role:'system', content: sys}, {role:'user', content: user} ] } }];"
+      },
+      "id": "3",
+      "name": "Build LLM Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-440, 20]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.OPENAI_BASE_URL || 'https://api.openai.com/v1/chat/completions'}}",
+        "requestMethod": "POST",
+        "jsonParameters": true,
+        "sendBinaryData": false,
+        "headerParametersJson": "={{ { 'Authorization': 'Bearer ' + $env.OPENAI_API_KEY, 'Content-Type': 'application/json' } }}",
+        "bodyParametersJson": "={{ $json.payload }}"
+      },
+      "id": "4",
+      "name": "OpenAI - Translate",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [-200, 20]
+    },
+    {
+      "parameters": {
+        "functionCode": "let c = $json.choices?.[0]?.message?.content || '{}';\nlet parsed; try { parsed = JSON.parse(c); } catch(e) { parsed = { translated: '' }; }\nreturn [parsed];"
+      },
+      "id": "5",
+      "name": "Parse JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [40, 20]
+    },
+    {
+      "parameters": {
+        "responseCode": 200,
+        "responseBody": "={{ $json }}"
+      },
+      "id": "6",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [280, 20]
+    }
+  ],
+  "connections": {
+    "Webhook - Translate": { "main": [[{ "node": "Normalize", "type": "main", "index": 0 }]] },
+    "Normalize": { "main": [[{ "node": "Build LLM Payload", "type": "main", "index": 0 }]] },
+    "Build LLM Payload": { "main": [[{ "node": "OpenAI - Translate", "type": "main", "index": 0 }]] },
+    "OpenAI - Translate": { "main": [[{ "node": "Parse JSON", "type": "main", "index": 0 }]] },
+    "Parse JSON": { "main": [[{ "node": "Respond", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "id": "16-support-translate-queries"
+}

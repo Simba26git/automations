@@ -1,0 +1,92 @@
+{
+  "name": "06 - AI Product Descriptions for E-commerce",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ecom/product-description",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "1",
+      "name": "Webhook - Product Input",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [-900, 0]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "mode": "auto",
+          "assignments": [
+            { "id": "name", "name": "name", "type": "string", "value": "={{$json.name || ''}}" },
+            { "id": "features", "name": "features", "type": "json", "value": "={{$json.features || []}}" },
+            { "id": "specs", "name": "specs", "type": "json", "value": "={{$json.specs || {}}}" },
+            { "id": "brandVoice", "name": "brandVoice", "type": "string", "value": "={{$json.brandVoice || ($env.BRAND_VOICE || 'Clear, helpful, SEO-friendly')}}" }
+          ]
+        }
+      },
+      "id": "2",
+      "name": "Normalize",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [-660, 0]
+    },
+    {
+      "parameters": {
+        "functionCode": "const sys = `You are an e-commerce copywriter. Write SEO title, 5 bullet points, and a 150-250 word description. Output JSON {seo_title, bullets, description_html, keywords}. Voice: ${$json.brandVoice}.`;\nconst user = JSON.stringify({ name: $json.name, features: $json.features, specs: $json.specs });\nreturn [{ payload: { model: $env.OPENAI_MODEL || 'gpt-4o-mini', temperature: 0.5, response_format: {type:'json_object'}, messages: [{role:'system', content: sys}, {role:'user', content: user}] } }];"
+      },
+      "id": "3",
+      "name": "Build LLM Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-420, 0]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.OPENAI_BASE_URL || 'https://api.openai.com/v1/chat/completions'}}",
+        "requestMethod": "POST",
+        "jsonParameters": true,
+        "sendBinaryData": false,
+        "headerParametersJson": "={{ { 'Authorization': 'Bearer ' + $env.OPENAI_API_KEY, 'Content-Type': 'application/json' } }}",
+        "bodyParametersJson": "={{ $json.payload }}"
+      },
+      "id": "4",
+      "name": "OpenAI - Generate Description",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [-180, 0]
+    },
+    {
+      "parameters": {
+        "functionCode": "let c = $json.choices?.[0]?.message?.content || '{}';\nlet parsed; try { parsed = JSON.parse(c); } catch(e){ parsed = {seo_title:'', bullets:[], description_html:'', keywords:[]}; }\nreturn [parsed];"
+      },
+      "id": "5",
+      "name": "Parse JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [60, 0]
+    },
+    {
+      "parameters": {
+        "responseCode": 200,
+        "responseBody": "={{ $json }}"
+      },
+      "id": "6",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [300, 0]
+    }
+  ],
+  "connections": {
+    "Webhook - Product Input": { "main": [[{ "node": "Normalize", "type": "main", "index": 0 }]] },
+    "Normalize": { "main": [[{ "node": "Build LLM Payload", "type": "main", "index": 0 }]] },
+    "Build LLM Payload": { "main": [[{ "node": "OpenAI - Generate Description", "type": "main", "index": 0 }]] },
+    "OpenAI - Generate Description": { "main": [[{ "node": "Parse JSON", "type": "main", "index": 0 }]] },
+    "Parse JSON": { "main": [[{ "node": "Respond", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "id": "06-ai-product-descriptions"
+}

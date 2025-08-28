@@ -1,0 +1,192 @@
+{
+  "name": "SM-02 - AI Lead Qualification (Webhook -> OpenAI JSON -> Respond)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead-qualify",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "1",
+      "name": "Webhook - /lead-qualify",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -980,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "mode": "auto",
+          "assignments": [
+            {
+              "id": "name",
+              "name": "name",
+              "value": "={{$json.name || ''}}",
+              "type": "string"
+            },
+            {
+              "id": "email",
+              "name": "email",
+              "value": "={{$json.email || ''}}",
+              "type": "string"
+            },
+            {
+              "id": "company",
+              "name": "company",
+              "value": "={{$json.company || ''}}",
+              "type": "string"
+            },
+            {
+              "id": "message",
+              "name": "message",
+              "value": "={{$json.message || ''}}",
+              "type": "string"
+            },
+            {
+              "id": "source",
+              "name": "source",
+              "value": "={{$json.source || 'web'}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "2",
+      "name": "Normalize Input",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        -760,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.openai.com/v1/chat/completions",
+        "options": {},
+        "method": "POST",
+        "authentication": "none",
+        "jsonParameters": true,
+        "sendHeaders": true,
+        "headerParametersJson": "={{ JSON.stringify({ \"Content-Type\": \"application/json\", \"Authorization\": `Bearer ${$env.OPENAI_API_KEY || ''}` }) }}",
+        "bodyParametersJson": "={{ JSON.stringify({\n  model: $env.OPENAI_MODEL || 'gpt-4o-mini',\n  temperature: 0.2,\n  response_format: { type: 'json_object' },\n  messages: [\n    { role: 'system', content: 'Classify B2B leads. Output MINIFIED JSON with keys: qualification (hot|warm|cold), score (0-100), reasons (string[]), nextActions (string[]), tags (string[]). No extra text.' },\n    { role: 'user', content: `Name: ${$json.name}\\nEmail: ${$json.email}\\nCompany: ${$json.company}\\nSource: ${$json.source}\\nMessage: ${$json.message}` },\n    { role: 'system', content: 'Hot = ready to buy or urgent pain; Warm = interested but needs nurturing; Cold = low intent or poor fit.' }\n  ]\n}) }}",
+        "queryParametersUi": {
+          "parameter": []
+        }
+      },
+      "id": "3",
+      "name": "OpenAI - Qualify Lead (JSON)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [
+        -520,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const resp = $json || {};\nconst content = resp.choices?.[0]?.message?.content || '{}';\nlet parsed;\ntry {\n  parsed = JSON.parse(content);\n} catch (e) {\n  parsed = { qualification: 'warm', score: 50, reasons: ['Default'], nextActions: ['Review manually'], tags: [] };\n}\nreturn [{ ...$item(0).$node['Normalize Input'].json, ai: parsed }];"
+      },
+      "id": "4",
+      "name": "Parse AI JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -280,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "responseBody": "={{ ({ status: 'ok', lead: { name: $json.name, email: $json.email, company: $json.company, source: $json.source }, qualification: $json.ai.qualification, score: $json.ai.score, reasons: $json.ai.reasons, nextActions: $json.ai.nextActions, tags: $json.ai.tags, processedAt: new Date().toISOString() }) }}"
+      },
+      "id": "5",
+      "name": "Respond JSON",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "mode": "auto",
+          "assignments": [
+            {
+              "id": "notes",
+              "name": "notes",
+              "value": "={\"customize\": {\"endpoint\": {\"path\": \"/lead-qualify\", \"method\": \"POST\"}, \"openai\": {\"env\": [\"OPENAI_API_KEY\", \"OPENAI_MODEL\"], \"prompt\": \"Tune rules for hot/warm/cold in system message.\"}, \"crm\": {\"tip\": \"POST to your CRM lead endpoint using an HTTP Request node with $env.CRM_LEADS_URL.\"}}, \"security\": {\"tip\": \"Validate required fields (email) in Normalize Input; add allowlist on source.\"}, \"example_body\": {\"name\": \"Jane Doe\", \"email\": \"jane@example.com\", \"company\": \"Acme\", \"message\": \"We need a demo next week\", \"source\": \"web\"}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "6",
+      "name": "Customization Notes",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        -520,
+        520
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook - /lead-qualify": {
+      "main": [
+        [
+          {
+            "node": "Normalize Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Input": {
+      "main": [
+        [
+          {
+            "node": "OpenAI - Qualify Lead (JSON)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - Qualify Lead (JSON)": {
+      "main": [
+        [
+          {
+            "node": "Parse AI JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI JSON": {
+      "main": [
+        [
+          {
+            "node": "Respond JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "sm-02-ai-lead-qualification",
+  "id": "sm-02-ai-lead-qualification"
+}

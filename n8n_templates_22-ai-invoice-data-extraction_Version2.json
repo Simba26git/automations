@@ -1,0 +1,125 @@
+{
+  "name": "AI Invoice Data Extraction",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "/webhook/invoice-upload",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "g7h8i9j0-k1l2-3456-ghij-789012345678",
+      "name": "Invoice Upload Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        260,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "vision",
+        "operation": "analyze",
+        "modelId": "gpt-4-vision-preview",
+        "prompt": "Extract the following information from this invoice image and return as JSON:\n{\n  \"invoice_number\": \"\",\n  \"date\": \"\",\n  \"vendor_name\": \"\",\n  \"total_amount\": \"\",\n  \"tax_amount\": \"\",\n  \"line_items\": [\n    {\n      \"description\": \"\",\n      \"quantity\": \"\",\n      \"unit_price\": \"\",\n      \"total\": \"\"\n    }\n  ]\n}",
+        "inputType": "base64",
+        "base64Input": "={{ $node[\"Invoice Upload Webhook\"].json[\"body\"][\"image\"] }}"
+      },
+      "id": "h8i9j0k1-l2m3-4567-hijk-890123456789",
+      "name": "AI Extract Invoice Data",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [
+        480,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "resource": "record",
+        "application": "invoices",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "invoice_number": "={{ JSON.parse($node[\"AI Extract Invoice Data\"].json[\"choices\"][0][\"message\"][\"content\"]).invoice_number }}",
+            "date": "={{ JSON.parse($node[\"AI Extract Invoice Data\"].json[\"choices\"][0][\"message\"][\"content\"]).date }}",
+            "vendor": "={{ JSON.parse($node[\"AI Extract Invoice Data\"].json[\"choices\"][0][\"message\"][\"content\"]).vendor_name }}",
+            "total": "={{ JSON.parse($node[\"AI Extract Invoice Data\"].json[\"choices\"][0][\"message\"][\"content\"]).total_amount }}",
+            "status": "Pending Review"
+          }
+        }
+      },
+      "id": "i9j0k1l2-m3n4-5678-ijkl-901234567890",
+      "name": "Save to Database",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 1,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"status\": \"success\", \"invoice_id\": $node[\"Save to Database\"].json[\"id\"], \"extracted_data\": JSON.parse($node[\"AI Extract Invoice Data\"].json[\"choices\"][0][\"message\"][\"content\"]) } }}"
+      },
+      "id": "j0k1l2m3-n4o5-6789-jklm-012345678901",
+      "name": "Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        920,
+        300
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Invoice Upload Webhook": {
+      "main": [
+        [
+          {
+            "node": "AI Extract Invoice Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Extract Invoice Data": {
+      "main": [
+        [
+          {
+            "node": "Save to Database",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to Database": {
+      "main": [
+        [
+          {
+            "node": "Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "23456789-01bc-def2-3456-789012bcdef3",
+  "id": "22",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "def456ghi789jkl012mno345pqr678stu901vwx234yz567abc123"
+  },
+  "tags": []
+}

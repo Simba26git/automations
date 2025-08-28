@@ -1,0 +1,155 @@
+{
+  "name": "18 - Generate Customer Follow-Up Messages (Email/SMS)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "support/follow-up",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "1",
+      "name": "Webhook - Follow-up",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [-1040, 40]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "mode": "auto",
+          "assignments": [
+            { "id": "ticketId", "name": "ticketId", "type": "string", "value": "={{$json.ticketId || ''}}" },
+            { "id": "summary", "name": "summary", "type": "string", "value": "={{$json.summary || ''}}" },
+            { "id": "resolution", "name": "resolution", "type": "string", "value": "={{$json.resolution || ''}}" },
+            { "id": "channel", "name": "channel", "type": "string", "value": "={{$json.channel || 'email'}}" },
+            { "id": "to", "name": "to", "type": "string", "value": "={{$json.to || ''}}" },
+            { "id": "language", "name": "language", "type": "string", "value": "={{$json.language || 'en'}}" }
+          ]
+        }
+      },
+      "id": "2",
+      "name": "Normalize",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [-800, 40]
+    },
+    {
+      "parameters": {
+        "functionCode": "const sys = `Draft a polite, concise customer follow-up in ${$json.language}. Output JSON {subject, text, html}.`;\nconst user = JSON.stringify({ ticketId: $json.ticketId, summary: $json.summary, resolution: $json.resolution });\nreturn [{ payload: { model: $env.OPENAI_MODEL || 'gpt-4o-mini', temperature: 0.3, response_format: {type:'json_object'}, messages: [ {role:'system', content: sys}, {role:'user', content: user} ] } }];"
+      },
+      "id": "3",
+      "name": "Build LLM Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-560, 40]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.OPENAI_BASE_URL || 'https://api.openai.com/v1/chat/completions'}}",
+        "requestMethod": "POST",
+        "jsonParameters": true,
+        "sendBinaryData": false,
+        "headerParametersJson": "={{ { 'Authorization': 'Bearer ' + $env.OPENAI_API_KEY, 'Content-Type': 'application/json' } }}",
+        "bodyParametersJson": "={{ $json.payload }}"
+      },
+      "id": "4",
+      "name": "OpenAI - Draft Follow-up",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [-320, 40]
+    },
+    {
+      "parameters": {
+        "functionCode": "let c = $json.choices?.[0]?.message?.content || '{}';\nlet parsed; try { parsed = JSON.parse(c); } catch(e){ parsed = { subject:'Follow-up on your request', text:'', html:'' }; }\nreturn [parsed];"
+      },
+      "id": "5",
+      "name": "Parse JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-80, 40]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            { "value1": "={{$items(0).item.json.channel}}", "operation": "equal", "value2": "sms" }
+          ]
+        }
+      },
+      "id": "6",
+      "name": "IF SMS",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [160, 40]
+    },
+    {
+      "parameters": {
+        "from": "={{$env.TWILIO_FROM}}",
+        "to": "={{$items(0).item.json.to}}",
+        "message": "={{$json.text || ''}}"
+      },
+      "id": "7",
+      "name": "Twilio - Send SMS (optional)",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [400, -60],
+      "credentials": {
+        "twilioApi": {
+          "id": "",
+          "name": "TWILIO_CREDENTIAL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMail",
+        "toList": "={{$items(0).item.json.to}}",
+        "subject": "={{$json.subject}}",
+        "message": "={{$json.html || $json.text}}",
+        "additionalFields": { "contentType": "HTML" }
+      },
+      "id": "8",
+      "name": "Outlook - Send Email (optional)",
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 2,
+      "position": [400, 160],
+      "credentials": {
+        "microsoftOutlookOAuth2Api": {
+          "id": "",
+          "name": "M365_OUTLOOK_CREDENTIAL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "responseCode": 200,
+        "responseBody": "={{ { subject: $json.subject, text: $json.text, channel: $items(1).item.json.channel, sent: true } }}"
+      },
+      "id": "9",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [660, 40]
+    }
+  ],
+  "connections": {
+    "Webhook - Follow-up": { "main": [[{ "node": "Normalize", "type": "main", "index": 0 }]] },
+    "Normalize": { "main": [[{ "node": "Build LLM Payload", "type": "main", "index": 0 }]] },
+    "Build LLM Payload": { "main": [[{ "node": "OpenAI - Draft Follow-up", "type": "main", "index": 0 }]] },
+    "OpenAI - Draft Follow-up": { "main": [[{ "node": "Parse JSON", "type": "main", "index": 0 }]] },
+    "Parse JSON": { "main": [[{ "node": "IF SMS", "type": "main", "index": 0 }]] },
+    "IF SMS": {
+      "main": [
+        [{ "node": "Twilio - Send SMS (optional)", "type": "main", "index": 0 }],
+        [{ "node": "Outlook - Send Email (optional)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Twilio - Send SMS (optional)": { "main": [[{ "node": "Respond", "type": "main", "index": 0 }]] },
+    "Outlook - Send Email (optional)": { "main": [[{ "node": "Respond", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "id": "18-support-follow-up-generator"
+}

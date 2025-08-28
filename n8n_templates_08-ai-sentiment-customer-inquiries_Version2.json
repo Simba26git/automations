@@ -1,0 +1,79 @@
+{
+  "name": "08 - AI Sentiment Analysis of Customer Inquiries",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "inquiries/sentiment",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "1",
+      "name": "Webhook - Inquiry",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [-820, 40]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "mode": "auto",
+          "assignments": [
+            { "id": "text", "name": "text", "type": "string", "value": "={{$json.text || ''}}" },
+            { "id": "modelId", "name": "modelId", "type": "string", "value": "={{$env.HF_SENTIMENT_MODEL || 'distilbert-base-uncased-finetuned-sst-2-english'}}" }
+          ]
+        }
+      },
+      "id": "2",
+      "name": "Normalize",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [-580, 40]
+    },
+    {
+      "parameters": {
+        "url": "={{'https://api-inference.huggingface.co/models/' + $json.modelId}}",
+        "requestMethod": "POST",
+        "jsonParameters": true,
+        "sendBinaryData": false,
+        "headerParametersJson": "={{ { 'Authorization': 'Bearer ' + $env.HUGGINGFACE_API_KEY, 'Content-Type': 'application/json' } }}",
+        "bodyParametersJson": "={{ { inputs: $json.text } }}"
+      },
+      "id": "3",
+      "name": "HuggingFace - Sentiment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [-340, 40]
+    },
+    {
+      "parameters": {
+        "functionCode": "const arr = Array.isArray($json) ? $json : ($json[0] ? $json[0] : []);\nconst best = Array.isArray(arr) ? arr.reduce((a,b)=> (b.score||0)>(a.score||0)?b:a, {label:'NEUTRAL', score:0}) : {label:'NEUTRAL', score:0};\nconst label = (best.label||'NEUTRAL').toLowerCase();\nconst negative = label.includes('neg');\nreturn [{ label, score: Number(best.score||0), negative }];"
+      },
+      "id": "4",
+      "name": "Parse Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-100, 40]
+    },
+    {
+      "parameters": {
+        "responseCode": 200,
+        "responseBody": "={{ { label: $json.label, score: $json.score, negative: $json.negative } }}"
+      },
+      "id": "5",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [140, 40]
+    }
+  ],
+  "connections": {
+    "Webhook - Inquiry": { "main": [[{ "node": "Normalize", "type": "main", "index": 0 }]] },
+    "Normalize": { "main": [[{ "node": "HuggingFace - Sentiment", "type": "main", "index": 0 }]] },
+    "HuggingFace - Sentiment": { "main": [[{ "node": "Parse Result", "type": "main", "index": 0 }]] },
+    "Parse Result": { "main": [[{ "node": "Respond", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "id": "08-ai-sentiment-customer-inquiries"
+}

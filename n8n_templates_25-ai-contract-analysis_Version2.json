@@ -1,0 +1,215 @@
+{
+  "name": "AI Contract Analysis",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "/webhook/contract-upload",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "w3x4y5z6-a7b8-9012-wxyz-345678901234",
+      "name": "Contract Upload Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        260,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "upload",
+        "fileInput": "={{ $node[\"Contract Upload Webhook\"].json[\"body\"][\"file\"] }}",
+        "purpose": "assistants"
+      },
+      "id": "x4y5z6a7-b8c9-0123-xyza-456789012345",
+      "name": "Upload to OpenAI",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [
+        480,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "create",
+        "chatId": {
+          "chatId": "gpt-4"
+        },
+        "text": "=Please analyze this contract document and extract key information in JSON format:\n\n{\n  \"contract_type\": \"\",\n  \"parties\": {\n    \"party_1\": \"\",\n    \"party_2\": \"\"\n  },\n  \"effective_date\": \"\",\n  \"expiration_date\": \"\",\n  \"key_terms\": [\n    {\n      \"term\": \"\",\n      \"description\": \"\"\n    }\n  ],\n  \"payment_terms\": {\n    \"amount\": \"\",\n    \"frequency\": \"\",\n    \"due_date\": \"\"\n  },\n  \"termination_clauses\": [\n    \"\"\n  ],\n  \"risk_factors\": [\n    {\n      \"risk\": \"\",\n      \"severity\": \"Low/Medium/High\",\n      \"description\": \"\"\n    }\n  ],\n  \"renewal_terms\": \"\",\n  \"governing_law\": \"\",\n  \"confidentiality_clause\": \"Yes/No\",\n  \"liability_limitations\": \"\",\n  \"force_majeure\": \"Yes/No\"\n}\n\nFile ID: {{ $node[\"Upload to OpenAI\"].json[\"id\"] }}"
+      },
+      "id": "y5z6a7b8-c9d0-1234-yzab-567890123456",
+      "name": "AI Analyze Contract",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "create",
+        "chatId": {
+          "chatId": "gpt-4"
+        },
+        "text": "=Based on the contract analysis, provide recommendations for negotiation or risk mitigation:\n\nContract Analysis:\n{{ $node[\"AI Analyze Contract\"].json[\"choices\"][0][\"message\"][\"content\"] }}\n\nProvide:\n1. Risk Assessment Summary\n2. Negotiation Recommendations\n3. Required Actions Before Signing\n4. Compliance Requirements\n5. Key Dates to Monitor\n\nFormat as structured text with clear sections."
+      },
+      "id": "z6a7b8c9-d0e1-2345-zabc-678901234567",
+      "name": "AI Generate Recommendations",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [
+        920,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "resource": "record",
+        "application": "contracts",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "contract_name": "={{ $node[\"Contract Upload Webhook\"].json[\"body\"][\"filename\"] }}",
+            "analysis": "={{ $node[\"AI Analyze Contract\"].json[\"choices\"][0][\"message\"][\"content\"] }}",
+            "recommendations": "={{ $node[\"AI Generate Recommendations\"].json[\"choices\"][0][\"message\"][\"content\"] }}",
+            "upload_date": "={{ new Date().toISOString() }}",
+            "status": "Under Review",
+            "file_id": "={{ $node[\"Upload to OpenAI\"].json[\"id\"] }}"
+          }
+        }
+      },
+      "id": "a7b8c9d0-e1f2-3456-abcd-789012345678",
+      "name": "Save Analysis",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 1,
+      "position": [
+        1140,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "toEmail": "legal@company.com",
+        "subject": "=Contract Analysis Complete: {{ $node[\"Contract Upload Webhook\"].json[\"body\"][\"filename\"] }}",
+        "emailType": "html",
+        "message": "=<h2>Contract Analysis Report</h2>\n\n<h3>Document:</h3>\n<p>{{ $node[\"Contract Upload Webhook\"].json[\"body\"][\"filename\"] }}</p>\n\n<h3>Key Analysis:</h3>\n<pre>{{ $node[\"AI Analyze Contract\"].json[\"choices\"][0][\"message\"][\"content\"] }}</pre>\n\n<h3>Recommendations:</h3>\n<pre>{{ $node[\"AI Generate Recommendations\"].json[\"choices\"][0][\"message\"][\"content\"] }}</pre>\n\n<p><em>This analysis was automatically generated. Please review carefully before making any decisions.</em></p>"
+      },
+      "id": "b8c9d0e1-f2g3-4567-bcde-890123456789",
+      "name": "Email Legal Team",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        1140,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"status\": \"success\", \"message\": \"Contract analyzed successfully\", \"analysis\": JSON.parse($node[\"AI Analyze Contract\"].json[\"choices\"][0][\"message\"][\"content\"]), \"recommendations\": $node[\"AI Generate Recommendations\"].json[\"choices\"][0][\"message\"][\"content\"] } }}"
+      },
+      "id": "c9d0e1f2-g3h4-5678-cdef-901234567890",
+      "name": "Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1360,
+        300
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Contract Upload Webhook": {
+      "main": [
+        [
+          {
+            "node": "Upload to OpenAI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to OpenAI": {
+      "main": [
+        [
+          {
+            "node": "AI Analyze Contract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Analyze Contract": {
+      "main": [
+        [
+          {
+            "node": "AI Generate Recommendations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Generate Recommendations": {
+      "main": [
+        [
+          {
+            "node": "Save Analysis",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email Legal Team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Analysis": {
+      "main": [
+        [
+          {
+            "node": "Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Legal Team": {
+      "main": [
+        [
+          {
+            "node": "Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "56789012-34ef-5678-9012-345678ef9012",
+  "id": "25",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "mno345pqr678stu901vwx234yz567abc123def456ghi789jkl012"
+  },
+  "tags": []
+}

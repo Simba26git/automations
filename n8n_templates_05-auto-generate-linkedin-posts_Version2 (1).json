@@ -1,0 +1,125 @@
+{
+  "name": "05 - Auto-Generate LinkedIn Posts from Company Updates",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "social/linkedin/generate-post",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "1",
+      "name": "Webhook - Update Input",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [-900, 100]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "mode": "auto",
+          "assignments": [
+            { "id": "title", "name": "title", "type": "string", "value": "={{$json.title || ''}}" },
+            { "id": "summary", "name": "summary", "type": "string", "value": "={{$json.summary || ''}}" },
+            { "id": "link", "name": "link", "type": "string", "value": "={{$json.link || ''}}" },
+            { "id": "hashtags", "name": "hashtags", "type": "json", "value": "={{$json.hashtags || []}}" },
+            { "id": "postNow", "name": "postNow", "type": "boolean", "value": "={{$json.postNow || false}}" }
+          ]
+        }
+      },
+      "id": "2",
+      "name": "Normalize",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [-660, 100]
+    },
+    {
+      "parameters": {
+        "functionCode": "const sys = 'Write a LinkedIn post for the provided update. Keep it under 220 words. Include 3-5 relevant hashtags if not provided. Output JSON {post, hashtags}.';\nconst user = JSON.stringify({ title: $json.title, summary: $json.summary, link: $json.link, hashtags: $json.hashtags });\nreturn [{ payload: { model: $env.OPENAI_MODEL || 'gpt-4o-mini', temperature: 0.5, response_format: {type:'json_object'}, messages: [ {role:'system', content: sys}, {role:'user', content: user} ] } }];"
+      },
+      "id": "3",
+      "name": "Build LLM Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-420, 100]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.OPENAI_BASE_URL || 'https://api.openai.com/v1/chat/completions'}}",
+        "requestMethod": "POST",
+        "jsonParameters": true,
+        "sendBinaryData": false,
+        "headerParametersJson": "={{ { 'Authorization': 'Bearer ' + $env.OPENAI_API_KEY, 'Content-Type': 'application/json' } }}",
+        "bodyParametersJson": "={{ $json.payload }}"
+      },
+      "id": "4",
+      "name": "OpenAI - Generate Post",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [-180, 100]
+    },
+    {
+      "parameters": {
+        "functionCode": "let c = $json.choices?.[0]?.message?.content || '{}';\nlet parsed; try { parsed = JSON.parse(c); } catch(e){ parsed = { post: ($items(0).item.json.summary||'') + ' ' + ($items(0).item.json.link||''), hashtags: [] }; }\nreturn [ { post: parsed.post, hashtags: Array.isArray(parsed.hashtags) ? parsed.hashtags : [] } ];"
+      },
+      "id": "5",
+      "name": "Parse JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [60, 100]
+    },
+    {
+      "parameters": {
+        "conditions": { "boolean": [{ "value1": "={{$items(0).item.json.postNow}}", "operation": "isTrue" }] }
+      },
+      "id": "6",
+      "name": "IF Post Now",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [300, 100]
+    },
+    {
+      "parameters": {
+        "url": "https://api.linkedin.com/v2/ugcPosts",
+        "requestMethod": "POST",
+        "jsonParameters": true,
+        "sendBinaryData": false,
+        "headerParametersJson": "={{ { 'Authorization': 'Bearer ' + $env.LINKEDIN_ACCESS_TOKEN, 'X-Restli-Protocol-Version': '2.0.0', 'Content-Type': 'application/json' } }}",
+        "bodyParametersJson": "={{ {\n  author: 'urn:li:organization:' + ($env.LINKEDIN_ORG_ID || ''),\n  lifecycleState: 'PUBLISHED',\n  specificContent: {\n    'com.linkedin.ugc.ShareContent': {\n      shareCommentary: { text: $json.post + ($json.hashtags.length ? ('\\n\\n' + $json.hashtags.map(h=>'#'+h.replace('#','')).join(' ')) : '') },\n      shareMediaCategory: $items(0).item.json.link ? 'ARTICLE' : 'NONE',\n      media: $items(0).item.json.link ? [{ status: 'READY', originalUrl: $items(0).item.json.link }] : []\n    }\n  },\n  visibility: { 'com.linkedin.ugc.MemberNetworkVisibility': 'PUBLIC' }\n} }}"
+      },
+      "id": "7",
+      "name": "LinkedIn - Publish (optional)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [540, 20]
+    },
+    {
+      "parameters": {
+        "responseCode": 200,
+        "responseBody": "={{ { post: $json.post, hashtags: $json.hashtags, posted: $items(1).item.json.postNow || false } }}"
+      },
+      "id": "8",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [800, 100]
+    }
+  ],
+  "connections": {
+    "Webhook - Update Input": { "main": [[{ "node": "Normalize", "type": "main", "index": 0 }]] },
+    "Normalize": { "main": [[{ "node": "Build LLM Payload", "type": "main", "index": 0 }]] },
+    "Build LLM Payload": { "main": [[{ "node": "OpenAI - Generate Post", "type": "main", "index": 0 }]] },
+    "OpenAI - Generate Post": { "main": [[{ "node": "Parse JSON", "type": "main", "index": 0 }]] },
+    "Parse JSON": { "main": [[{ "node": "IF Post Now", "type": "main", "index": 0 }]] },
+    "IF Post Now": {
+      "main": [
+        [{ "node": "LinkedIn - Publish (optional)", "type": "main", "index": 0 }],
+        [{ "node": "Respond", "type": "main", "index": 0 }]
+      ]
+    },
+    "LinkedIn - Publish (optional)": { "main": [[{ "node": "Respond", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "id": "05-auto-generate-linkedin-posts"
+}

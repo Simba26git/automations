@@ -1,0 +1,93 @@
+{
+  "name": "09 - Personalized Email Subject Line Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "email/subject-line",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "1",
+      "name": "Webhook - Subject Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [-820, -40]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "mode": "auto",
+          "assignments": [
+            { "id": "audience", "name": "audience", "type": "string", "value": "={{$json.audience || ''}}" },
+            { "id": "offer", "name": "offer", "type": "string", "value": "={{$json.offer || ''}}" },
+            { "id": "bodyPreview", "name": "bodyPreview", "type": "string", "value": "={{$json.bodyPreview || ''}}" },
+            { "id": "tone", "name": "tone", "type": "string", "value": "={{$json.tone || 'concise, action-oriented'}}" },
+            { "id": "count", "name": "count", "type": "number", "value": "={{$json.count || 10}}" }
+          ]
+        }
+      },
+      "id": "2",
+      "name": "Normalize",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [-580, -40]
+    },
+    {
+      "parameters": {
+        "functionCode": "const sys = `Generate ${$json.count} high-converting email subject lines as a JSON array 'subjects'. Use tone: ${$json.tone}. Personalize for audience: ${$json.audience}. Avoid spammy words.`;\nconst user = `Offer: ${$json.offer}\\nBody: ${$json.bodyPreview}`;\nreturn [{ payload: { model: $env.OPENAI_MODEL || 'gpt-4o-mini', temperature: 0.7, response_format: {type:'json_object'}, messages: [ {role:'system', content: sys}, {role:'user', content: user} ] } }];"
+      },
+      "id": "3",
+      "name": "Build LLM Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-340, -40]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.OPENAI_BASE_URL || 'https://api.openai.com/v1/chat/completions'}}",
+        "requestMethod": "POST",
+        "jsonParameters": true,
+        "sendBinaryData": false,
+        "headerParametersJson": "={{ { 'Authorization': 'Bearer ' + $env.OPENAI_API_KEY, 'Content-Type': 'application/json' } }}",
+        "bodyParametersJson": "={{ $json.payload }}"
+      },
+      "id": "4",
+      "name": "OpenAI - Generate Subjects",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [-100, -40]
+    },
+    {
+      "parameters": {
+        "functionCode": "let c = $json.choices?.[0]?.message?.content || '{}';\nlet parsed; try { parsed = JSON.parse(c); } catch(e){ parsed = { subjects: [] }; }\nreturn [{ subjects: parsed.subjects || [] }];"
+      },
+      "id": "5",
+      "name": "Parse JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [140, -40]
+    },
+    {
+      "parameters": {
+        "responseCode": 200,
+        "responseBody": "={{ $json }}"
+      },
+      "id": "6",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [380, -40]
+    }
+  ],
+  "connections": {
+    "Webhook - Subject Request": { "main": [[{ "node": "Normalize", "type": "main", "index": 0 }]] },
+    "Normalize": { "main": [[{ "node": "Build LLM Payload", "type": "main", "index": 0 }]] },
+    "Build LLM Payload": { "main": [[{ "node": "OpenAI - Generate Subjects", "type": "main", "index": 0 }]] },
+    "OpenAI - Generate Subjects": { "main": [[{ "node": "Parse JSON", "type": "main", "index": 0 }]] },
+    "Parse JSON": { "main": [[{ "node": "Respond", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "id": "09-personalized-subject-line-generator"
+}
