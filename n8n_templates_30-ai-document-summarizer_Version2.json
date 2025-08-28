@@ -1,0 +1,39 @@
+{
+  "name": "AI Document Summarizer",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "/webhook/document-upload",
+        "httpMethod": "POST",
+        "responseMode": "responseNode"
+      },
+      "id": "l2m3n4o5-p6q7-8901-lmno-234567890123",
+      "name": "Document Upload",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [260, 300]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "create",
+        "chatId": {"chatId": "gpt-4"},
+        "text": "=Create a comprehensive summary of this document:\n\nDocument: {{ $node[\"Document Upload\"].json[\"body\"][\"document_text\"] }}\n\nProvide:\n1. Executive Summary (2-3 sentences)\n2. Key Points (bullet points)\n3. Important Dates/Deadlines\n4. Action Items\n5. Stakeholders Mentioned\n6. Decisions Required\n\nFormat as structured markdown."
+      },
+      "id": "m3n4o5p6-q7r8-9012-mnop-345678901234",
+      "name": "AI Summarize",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [480, 300]
+    }
+  ],
+  "connections": {
+    "Document Upload": {"main": [[{"node": "AI Summarize", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "versionId": "30000001-0001-0001-0001-000000000005",
+  "id": "30",
+  "meta": {"templateCredsSetupCompleted": true},
+  "tags": []
+}

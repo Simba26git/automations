@@ -1,0 +1,38 @@
+{
+  "name": "AI Brand Mention Monitoring",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {"item": [{"mode": "everyHour"}]},
+        "searchTerm": "{{ $json.brand_name }}"
+      },
+      "id": "p6q7r8s9-t0u1-2345-pqrs-678901234567",
+      "name": "Monitor Web Mentions",
+      "type": "n8n-nodes-base.rss",
+      "typeVersion": 1,
+      "position": [260, 300]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "create",
+        "chatId": {"chatId": "gpt-4"},
+        "text": "=Analyze this brand mention:\n\nContent: {{ $json.description }}\nSource: {{ $json.link }}\nTitle: {{ $json.title }}\n\nProvide JSON:\n{\n  \"sentiment\": \"Positive/Negative/Neutral\",\n  \"urgency\": \"Low/Medium/High\",\n  \"category\": \"Review/News/Social/Forum\",\n  \"influence_score\": \"0-100\",\n  \"response_needed\": \"Yes/No\",\n  \"key_topics\": []\n}"
+      },
+      "id": "q7r8s9t0-u1v2-3456-qrst-789012345678",
+      "name": "AI Analyze Mention",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [480, 300]
+    }
+  ],
+  "connections": {
+    "Monitor Web Mentions": {"main": [[{"node": "AI Analyze Mention", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "versionId": "32000001-0001-0001-0001-000000000007",
+  "id": "32",
+  "meta": {"templateCredsSetupCompleted": true},
+  "tags": []
+}

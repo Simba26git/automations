@@ -1,0 +1,38 @@
+{
+  "name": "AI Competitor Analysis",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {"item": [{"mode": "everyDay"}]},
+        "url": "{{ $json.competitor_website }}"
+      },
+      "id": "t0u1v2w3-x4y5-6789-tuvw-012345678901",
+      "name": "Monitor Competitor",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [260, 300]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "create",
+        "chatId": {"chatId": "gpt-4"},
+        "text": "=Analyze competitor website changes:\n\nWebsite Content: {{ $json.content }}\nPrevious Content: {{ $json.previous_content }}\nCompetitor: {{ $json.competitor_name }}\n\nProvide JSON:\n{\n  \"significant_changes\": \"Yes/No\",\n  \"changes_detected\": [],\n  \"pricing_changes\": [],\n  \"new_products\": [],\n  \"strategic_implications\": \"\",\n  \"recommended_actions\": []\n}"
+      },
+      "id": "u1v2w3x4-y5z6-7890-uvwx-123456789012",
+      "name": "AI Analyze Changes",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [480, 300]
+    }
+  ],
+  "connections": {
+    "Monitor Competitor": {"main": [[{"node": "AI Analyze Changes", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "versionId": "34000001-0001-0001-0001-000000000009",
+  "id": "34",
+  "meta": {"templateCredsSetupCompleted": true},
+  "tags": []
+}

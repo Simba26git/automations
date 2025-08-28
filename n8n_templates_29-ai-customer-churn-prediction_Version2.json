@@ -1,0 +1,39 @@
+{
+  "name": "AI Customer Churn Prediction",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {"item": [{"mode": "everyDay"}]},
+        "operation": "getAll",
+        "resource": "customers"
+      },
+      "id": "j0k1l2m3-n4o5-6789-jklm-012345678901",
+      "name": "Get Customer Data",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 1,
+      "position": [260, 300]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "create",
+        "chatId": {"chatId": "gpt-4"},
+        "text": "=Analyze customer behavior and predict churn risk:\n\nCustomer Data:\nLast Purchase: {{ $json.last_purchase_date }}\nTotal Purchases: {{ $json.total_purchases }}\nSupport Tickets: {{ $json.support_tickets }}\nEngagement Score: {{ $json.engagement_score }}\nAccount Age: {{ $json.account_age }}\n\nProvide JSON response:\n{\n  \"churn_probability\": \"0-100\",\n  \"risk_level\": \"Low/Medium/High\",\n  \"key_indicators\": [],\n  \"recommended_actions\": [],\n  \"retention_strategy\": \"\"\n}"
+      },
+      "id": "k1l2m3n4-o5p6-7890-klmn-123456789012",
+      "name": "AI Churn Analysis",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [480, 300]
+    }
+  ],
+  "connections": {
+    "Get Customer Data": {"main": [[{"node": "AI Churn Analysis", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "versionId": "29000001-0001-0001-0001-000000000004",
+  "id": "29",
+  "meta": {"templateCredsSetupCompleted": true},
+  "tags": []
+}

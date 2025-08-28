@@ -1,0 +1,60 @@
+{
+  "name": "AI Price Optimization",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {"item": [{"mode": "everyHour"}]},
+        "resource": "products",
+        "operation": "getAll"
+      },
+      "id": "d4e5f6g7-h8i9-0123-defg-456789012345",
+      "name": "Get Products",
+      "type": "n8n-nodes-base.shopify",
+      "typeVersion": 1,
+      "position": [260, 300]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "create",
+        "chatId": {"chatId": "gpt-4"},
+        "text": "=Analyze market data and suggest optimal pricing for this product:\n\nProduct: {{ $json.title }}\nCurrent Price: {{ $json.variants[0].price }}\nInventory: {{ $json.variants[0].inventory_quantity }}\nCompetitor Prices: {{ $node[\"Get Products\"].json[\"competitor_data\"] }}\nSales Data: {{ $node[\"Get Products\"].json[\"sales_history\"] }}\n\nProvide JSON response:\n{\n  \"suggested_price\": \"\",\n  \"price_change_percentage\": \"\",\n  \"reasoning\": \"\",\n  \"confidence_level\": \"0-100\",\n  \"market_position\": \"Premium/Competitive/Budget\"\n}"
+      },
+      "id": "e5f6g7h8-i9j0-1234-efgh-567890123456",
+      "name": "AI Price Analysis",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "resource": "product",
+        "operation": "update",
+        "productId": "={{ $json.id }}",
+        "updateFields": {
+          "variants": [
+            {
+              "id": "={{ $json.variants[0].id }}",
+              "price": "={{ JSON.parse($node[\"AI Price Analysis\"].json[\"choices\"][0][\"message\"][\"content\"]).suggested_price }}"
+            }
+          ]
+        }
+      },
+      "id": "f6g7h8i9-j0k1-2345-fghi-678901234567",
+      "name": "Update Price",
+      "type": "n8n-nodes-base.shopify",
+      "typeVersion": 1,
+      "position": [700, 300]
+    }
+  ],
+  "connections": {
+    "Get Products": {"main": [[{"node": "AI Price Analysis", "type": "main", "index": 0}]]},
+    "AI Price Analysis": {"main": [[{"node": "Update Price", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "versionId": "27000001-0001-0001-0001-000000000002",
+  "id": "27",
+  "meta": {"templateCredsSetupCompleted": true},
+  "tags": []
+}

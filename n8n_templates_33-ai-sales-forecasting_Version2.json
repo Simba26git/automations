@@ -1,0 +1,39 @@
+{
+  "name": "AI Sales Forecasting",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {"item": [{"mode": "everyWeek"}]},
+        "operation": "getAll",
+        "resource": "deals"
+      },
+      "id": "r8s9t0u1-v2w3-4567-rstu-890123456789",
+      "name": "Get Sales Data",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 1,
+      "position": [260, 300]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "create",
+        "chatId": {"chatId": "gpt-4"},
+        "text": "=Forecast sales performance based on pipeline data:\n\nPipeline Data:\nOpen Deals: {{ $json.open_deals }}\nHistorical Close Rate: {{ $json.close_rate }}\nAverage Deal Size: {{ $json.avg_deal_size }}\nSales Cycle: {{ $json.avg_sales_cycle }}\nSeasonality: {{ $json.seasonal_factors }}\n\nProvide JSON:\n{\n  \"monthly_forecast\": \"\",\n  \"quarterly_forecast\": \"\",\n  \"confidence_level\": \"0-100\",\n  \"key_risks\": [],\n  \"growth_opportunities\": []\n}"
+      },
+      "id": "s9t0u1v2-w3x4-5678-stuv-901234567890",
+      "name": "AI Sales Forecast",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [480, 300]
+    }
+  ],
+  "connections": {
+    "Get Sales Data": {"main": [[{"node": "AI Sales Forecast", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "versionId": "33000001-0001-0001-0001-000000000008",
+  "id": "33",
+  "meta": {"templateCredsSetupCompleted": true},
+  "tags": []
+}

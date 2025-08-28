@@ -1,0 +1,39 @@
+{
+  "name": "AI Inventory Forecasting",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {"item": [{"mode": "everyDay"}]},
+        "operation": "getAll",
+        "resource": "inventory"
+      },
+      "id": "n4o5p6q7-r8s9-0123-nopq-456789012345",
+      "name": "Get Inventory Data",
+      "type": "n8n-nodes-base.shopify",
+      "typeVersion": 1,
+      "position": [260, 300]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "create",
+        "chatId": {"chatId": "gpt-4"},
+        "text": "=Forecast inventory needs based on historical data:\n\nProduct: {{ $json.title }}\nCurrent Stock: {{ $json.inventory_quantity }}\nSales History: {{ $json.sales_data }}\nSeasonal Trends: {{ $json.seasonal_data }}\nLead Time: {{ $json.supplier_lead_time }}\n\nProvide JSON:\n{\n  \"forecasted_demand\": \"\",\n  \"recommended_order_quantity\": \"\",\n  \"reorder_point\": \"\",\n  \"stockout_risk\": \"Low/Medium/High\",\n  \"seasonal_adjustment\": \"\"\n}"
+      },
+      "id": "o5p6q7r8-s9t0-1234-opqr-567890123456",
+      "name": "AI Forecast",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [480, 300]
+    }
+  ],
+  "connections": {
+    "Get Inventory Data": {"main": [[{"node": "AI Forecast", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "versionId": "31000001-0001-0001-0001-000000000006",
+  "id": "31",
+  "meta": {"templateCredsSetupCompleted": true},
+  "tags": []
+}

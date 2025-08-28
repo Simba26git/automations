@@ -1,0 +1,65 @@
+{
+  "name": "AI Resume Screening",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "/webhook/resume-upload",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "name": "Resume Upload Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [260, 300]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "create",
+        "chatId": {"chatId": "gpt-4"},
+        "text": "=Analyze this resume and provide a structured assessment:\n\nResume Content: {{ $node[\"Resume Upload Webhook\"].json[\"body\"][\"resume_text\"] }}\nJob Description: {{ $node[\"Resume Upload Webhook\"].json[\"body\"][\"job_description\"] }}\n\nProvide JSON response:\n{\n  \"overall_score\": \"0-100\",\n  \"skills_match\": \"0-100\",\n  \"experience_match\": \"0-100\",\n  \"education_match\": \"0-100\",\n  \"key_strengths\": [],\n  \"missing_skills\": [],\n  \"recommendation\": \"Proceed/Review/Reject\",\n  \"summary\": \"\"\n}"
+      },
+      "id": "b2c3d4e5-f6g7-8901-bcde-f23456789012",
+      "name": "AI Screen Resume",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "resource": "record",
+        "application": "candidates",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "name": "={{ $node[\"Resume Upload Webhook\"].json[\"body\"][\"candidate_name\"] }}",
+            "email": "={{ $node[\"Resume Upload Webhook\"].json[\"body\"][\"candidate_email\"] }}",
+            "position": "={{ $node[\"Resume Upload Webhook\"].json[\"body\"][\"position\"] }}",
+            "screening_score": "={{ JSON.parse($node[\"AI Screen Resume\"].json[\"choices\"][0][\"message\"][\"content\"]).overall_score }}",
+            "recommendation": "={{ JSON.parse($node[\"AI Screen Resume\"].json[\"choices\"][0][\"message\"][\"content\"]).recommendation }}",
+            "analysis": "={{ $node[\"AI Screen Resume\"].json[\"choices\"][0][\"message\"][\"content\"] }}",
+            "status": "Screened"
+          }
+        }
+      },
+      "id": "c3d4e5f6-g7h8-9012-cdef-345678901234",
+      "name": "Save to ATS",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 1,
+      "position": [700, 300]
+    }
+  ],
+  "connections": {
+    "Resume Upload Webhook": {"main": [[{"node": "AI Screen Resume", "type": "main", "index": 0}]]},
+    "AI Screen Resume": {"main": [[{"node": "Save to ATS", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "versionId": "26000001-0001-0001-0001-000000000001",
+  "id": "26",
+  "meta": {"templateCredsSetupCompleted": true},
+  "tags": []
+}

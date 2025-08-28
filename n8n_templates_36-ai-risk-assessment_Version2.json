@@ -1,0 +1,39 @@
+{
+  "name": "AI Risk Assessment",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "/webhook/risk-assessment",
+        "httpMethod": "POST",
+        "responseMode": "responseNode"
+      },
+      "id": "x4y5z6a7-b8c9-0123-xyza-456789012345",
+      "name": "Risk Data Input",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [260, 300]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "create",
+        "chatId": {"chatId": "gpt-4"},
+        "text": "=Assess business risk factors:\n\nProject: {{ $node[\"Risk Data Input\"].json[\"body\"][\"project_name\"] }}\nBudget: {{ $node[\"Risk Data Input\"].json[\"body\"][\"budget\"] }}\nTimeline: {{ $node[\"Risk Data Input\"].json[\"body\"][\"timeline\"] }}\nStakeholders: {{ $node[\"Risk Data Input\"].json[\"body\"][\"stakeholders\"] }}\nComplexity: {{ $node[\"Risk Data Input\"].json[\"body\"][\"complexity\"] }}\n\nProvide JSON:\n{\n  \"overall_risk_score\": \"0-100\",\n  \"risk_level\": \"Low/Medium/High/Critical\",\n  \"identified_risks\": [\n    {\"risk\": \"\", \"probability\": \"\", \"impact\": \"\", \"mitigation\": \"\"}\n  ],\n  \"recommended_actions\": []\n}"
+      },
+      "id": "y5z6a7b8-c9d0-1234-yzab-567890123456",
+      "name": "AI Risk Analysis",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [480, 300]
+    }
+  ],
+  "connections": {
+    "Risk Data Input": {"main": [[{"node": "AI Risk Analysis", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "versionId": "36000001-0001-0001-0001-000000000011",
+  "id": "36",
+  "meta": {"templateCredsSetupCompleted": true},
+  "tags": []
+}

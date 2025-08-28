@@ -1,0 +1,39 @@
+{
+  "name": "AI Project Timeline Optimizer",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "/webhook/project-data",
+        "httpMethod": "POST",
+        "responseMode": "responseNode"
+      },
+      "id": "d0e1f2g3-h4i5-6789-defg-012345678901",
+      "name": "Project Data Input",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [260, 300]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "create",
+        "chatId": {"chatId": "gpt-4"},
+        "text": "=Optimize project timeline and resource allocation:\n\nProject: {{ $node[\"Project Data Input\"].json[\"body\"][\"project_name\"] }}\nTasks: {{ $node[\"Project Data Input\"].json[\"body\"][\"tasks\"] }}\nResources: {{ $node[\"Project Data Input\"].json[\"body\"][\"resources\"] }}\nDeadline: {{ $node[\"Project Data Input\"].json[\"body\"][\"deadline\"] }}\nDependencies: {{ $node[\"Project Data Input\"].json[\"body\"][\"dependencies\"] }}\n\nProvide JSON:\n{\n  \"optimized_timeline\": {},\n  \"resource_allocation\": {},\n  \"critical_path\": [],\n  \"risk_mitigation\": [],\n  \"time_savings\": \"\"\n}"
+      },
+      "id": "e1f2g3h4-i5j6-7890-efgh-123456789012",
+      "name": "AI Timeline Optimizer",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [480, 300]
+    }
+  ],
+  "connections": {
+    "Project Data Input": {"main": [[{"node": "AI Timeline Optimizer", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "versionId": "51000001-0001-0001-0001-000000000014",
+  "id": "51",
+  "meta": {"templateCredsSetupCompleted": true},
+  "tags": []
+}

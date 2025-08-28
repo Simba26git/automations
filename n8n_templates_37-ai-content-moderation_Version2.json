@@ -1,0 +1,38 @@
+{
+  "name": "AI Content Moderation",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "/webhook/content-review",
+        "httpMethod": "POST"
+      },
+      "id": "z6a7b8c9-d0e1-2345-zabc-678901234567",
+      "name": "Content Submission",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [260, 300]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "create",
+        "chatId": {"chatId": "gpt-4"},
+        "text": "=Moderate this content for policy violations:\n\nContent: {{ $node[\"Content Submission\"].json[\"body\"][\"content\"] }}\nContent Type: {{ $node[\"Content Submission\"].json[\"body\"][\"type\"] }}\n\nCheck for:\n- Inappropriate language\n- Spam\n- Violence\n- Hate speech\n- Copyright issues\n\nProvide JSON:\n{\n  \"approved\": \"Yes/No\",\n  \"violations\": [],\n  \"confidence_score\": \"0-100\",\n  \"severity\": \"Low/Medium/High\",\n  \"action_required\": \"Approve/Flag/Remove/Ban User\"\n}"
+      },
+      "id": "a7b8c9d0-e1f2-3456-abcd-789012345678",
+      "name": "AI Content Review",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [480, 300]
+    }
+  ],
+  "connections": {
+    "Content Submission": {"main": [[{"node": "AI Content Review", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "versionId": "37000001-0001-0001-0001-000000000012",
+  "id": "37",
+  "meta": {"templateCredsSetupCompleted": true},
+  "tags": []
+}

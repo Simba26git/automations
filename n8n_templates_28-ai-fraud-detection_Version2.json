@@ -1,0 +1,58 @@
+{
+  "name": "AI Fraud Detection",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "/webhook/transaction",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "g7h8i9j0-k1l2-3456-ghij-789012345678",
+      "name": "Transaction Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [260, 300]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "create",
+        "chatId": {"chatId": "gpt-4"},
+        "text": "=Analyze this transaction for fraud indicators:\n\nTransaction Data:\nAmount: {{ $node[\"Transaction Webhook\"].json[\"body\"][\"amount\"] }}\nLocation: {{ $node[\"Transaction Webhook\"].json[\"body\"][\"location\"] }}\nTime: {{ $node[\"Transaction Webhook\"].json[\"body\"][\"timestamp\"] }}\nMerchant: {{ $node[\"Transaction Webhook\"].json[\"body\"][\"merchant\"] }}\nCard Type: {{ $node[\"Transaction Webhook\"].json[\"body\"][\"card_type\"] }}\nUser History: {{ $node[\"Transaction Webhook\"].json[\"body\"][\"user_history\"] }}\n\nProvide JSON response:\n{\n  \"fraud_score\": \"0-100\",\n  \"risk_level\": \"Low/Medium/High\",\n  \"recommendation\": \"Approve/Review/Block\",\n  \"red_flags\": [],\n  \"reasoning\": \"\"\n}"
+      },
+      "id": "h8i9j0k1-l2m3-4567-hijk-890123456789",
+      "name": "AI Fraud Analysis",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {"caseSensitive": true},
+          "conditions": [{
+            "leftValue": "={{ JSON.parse($node[\"AI Fraud Analysis\"].json[\"choices\"][0][\"message\"][\"content\"]).recommendation }}",
+            "rightValue": "Block",
+            "operator": {"type": "string", "operation": "equals"}
+          }]
+        }
+      },
+      "id": "i9j0k1l2-m3n4-5678-ijkl-901234567890",
+      "name": "Check if Block",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [700, 300]
+    }
+  ],
+  "connections": {
+    "Transaction Webhook": {"main": [[{"node": "AI Fraud Analysis", "type": "main", "index": 0}]]},
+    "AI Fraud Analysis": {"main": [[{"node": "Check if Block", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "versionId": "28000001-0001-0001-0001-000000000003",
+  "id": "28",
+  "meta": {"templateCredsSetupCompleted": true},
+  "tags": []
+}

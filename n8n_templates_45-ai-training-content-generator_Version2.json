@@ -1,0 +1,39 @@
+﻿{
+  "name": "AI Training Content Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "/webhook/45",
+        "httpMethod": "POST",
+        "responseMode": "responseNode"
+      },
+      "id": "node-45-001",
+      "name": "Input Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [260, 300]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "create",
+        "chatId": {"chatId": "gpt-4"},
+        "text": "=Creates training materials and assessments. Analyze the input data and provide structured insights."
+      },
+      "id": "node-45-002",
+      "name": "AI Analysis",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [480, 300]
+    }
+  ],
+  "connections": {
+    "Input Webhook": {"main": [[{"node": "AI Analysis", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "versionId": "45000001-0001-0001-0001-000000000001",
+  "id": "45",
+  "meta": {"templateCredsSetupCompleted": true},
+  "tags": []
+}
